@@ -1,0 +1,135 @@
+1. version docker : 
+
+iyed@iyedM:~/iTransform365$ docker version
+Client: Docker Engine - Community
+ Version:           29.4.3
+ API version:       1.54
+ Go version:        go1.26.2
+ Git commit:        055a478
+ Built:             Wed May  6 17:07:36 2026
+ OS/Arch:           linux/amd64
+ Context:           default
+
+2. K3d now ( install it witrh curl)
+
+iyed@iyedM:~/iTransform365$ k3d version
+k3d version v5.9.0
+k3s version v1.35.5-k3s1 (default)
+iyed@iyedM:~/iTransform365$ 
+
+3. kubectl:
+iyed@iyedM:~/iTransform365$ kubectl version --client
+Client Version: v1.32.13
+Kustomize Version: v5.5.0
+iyed@iyedM:~/iTransform365$ 
+
+4. Helm:
+
+iyed@iyedM:~/iTransform365$ helm version
+version.BuildInfo{Version:"v3.21.3", GitCommit:"1ad6e68924fdf6fb0c7dcef8e9e1dfc0f36eaed6", GitTreeState:"clean", GoVersion:"go1.26.5"}
+iyed@iyedM:~/iTransform365$ 
+
+
+5. k9s : terminal ui for k8s 
+
+
+II.Creating the cluster :
+
+1.:
+k3d cluster create observability-lab \
+  --agents 2 \
+  --port "8080:80@loadbalancer" \
+  --port "8443:443@loadbalancer" \
+  --k3s-arg "--disable=traefik@server:0"   # optional: disable default ingress if you'll use your own
+  
+  
+  . 
+  poblems i met:
+  D'abord, confirmation : ton cluster final est créé en 24 secondes, propre, sans aucune erreur cette fois — exactement la commande qu'on visait depuis le début. Vérifie juste pour clôturer :
+
+```bash
+docker ps -a --filter "name=k3d-observability-lab"
+kubectl get nodes
+```
+
+Tu devrais voir `server-0`, `agent-0`, `agent-1`, et `serverlb` tous "Up", et `kubectl get nodes` listant 3 nœuds Ready.
+
+---
+
+## Réponse à la question posée
+
+Le premier essai avec `kind-mycluster` qui tournait encore (3 nœuds en plus) était plus susceptible de buter sur la limite inotify parce que **chaque nœud actif consomme une part fixe du quota `max_user_instances`**, qui est une limite **globale par utilisateur sur toute la machine**, pas par cluster. Donc kind (3 nœuds) + k3d (3 nœuds server+2agents) tournaient en même temps et se partageaient un quota de seulement 128 — largement insuffisant. Une fois kind supprimé, il restait de la marge, mais toujours pas assez pour un agent k3d en plus du serveur — d'où le fix définitif : augmenter la limite elle-même plutôt que de juste réduire le nombre de nœuds.
+
+---
+
+## Post-mortem complet de la session de debug
+
+### Problème 1 — Conflit de port (8080 déjà utilisé)
+**Symptôme** : `k3d-observability-lab-serverlb` restait bloqué en statut `Created`, ne démarrait jamais.
+**Erreur clé** :
+```
+Bind for 0.0.0.0:8080 failed: port is already allocated
+```
+**Commandes de vérification** :
+```bash
+docker ps -a --filter "name=k3d-observability-lab"   # a montré serverlb en "Created" au lieu de "Up"
+docker logs k3d-observability-lab-serverlb            # vide -> jamais vraiment démarré
+docker start k3d-observability-lab-serverlb           # a révélé l'erreur de port en clair
+sudo lsof -i :8080                                    # a identifié le process en conflit
+docker ps --format "table {{.Names}}\t{{.Ports}}" | grep 8080   # a identifié web_nginx comme coupable
+```
+**Résolution** : recréer le cluster avec un port hôte différent (`8090:80` au lieu de `8080:80`) plutôt que de toucher au conteneur `web_nginx` existant.
+
+### Problème 2 — Résidus de suppression incomplète
+**Symptôme** : après un `k3d cluster delete`, des conteneurs/volumes restaient bloqués dans un état intermédiaire, provoquant des erreurs en cascade sur les tentatives suivantes.
+**Erreur clé** :
+```
+removal of container ... is already in progress
+volume is in use - Try to delete it manually
+```
+**Commandes de vérification/nettoyage** :
+```bash
+docker ps -a --filter "name=k3d-observability-lab"
+docker volume ls | grep k3d-observability-lab
+docker network ls | grep k3d-observability-lab
+docker rm -f $(docker ps -a -q --filter "name=k3d-observability-lab")
+docker volume rm -f k3d-observability-lab-images
+docker network rm k3d-observability-lab
+```
+**Résolution** : nettoyage manuel forcé des résidus avant de recréer.
+
+### Problème 3 (le vrai bug de fond) — Limite système `inotify` trop basse
+**Symptôme** : dès qu'un cluster avait **au moins un agent**, son containerd restait bloqué indéfiniment (`Waiting for containerd startup: rpc error: ... Unimplemented ... RuntimeService`), pendant que le load balancer, lui, échouait à lire sa config (`stat /etc/confd/values.yaml: no such file or directory`) faute de pouvoir terminer son initialisation en parallèle.
+**Démarche de diagnostic** (par élimination, variable par variable) :
+```bash
+df -h /var/lib/docker              # écarté : espace disque OK
+docker system df                   # écarté : rien d'anormal
+k3d cluster create test-clean      # sans options -> a marché (0 agent)
+k3d cluster create obs-lab --agents 0    # a marché aussi
+k3d cluster create obs-lab --agents 1    # a bloqué -> le coupable est l'agent, pas les autres flags
+docker stats --no-stream / nproc / uptime / free -h   # écarté : CPU et RAM largement dispo
+cat /proc/sys/fs/inotify/max_user_instances   # -> 128, valeur par défaut trop basse
+```
+**Résolution** :
+```bash
+sudo sysctl fs.inotify.max_user_instances=512
+sudo sysctl fs.inotify.max_user_watches=524288
+echo "fs.inotify.max_user_instances=512" | sudo tee -a /etc/sysctl.conf
+echo "fs.inotify.max_user_watches=524288" | sudo tee -a /etc/sysctl.conf
+sudo sysctl -p
+```
+Combiné à la suppression de `kind-mycluster` (qui consommait sa part du même quota), ça a définitivement débloqué le démarrage des agents.
+
+---
+
+## La leçon à retenir, au-delà de ce bug précis
+
+Face à un pod/nœud/conteneur qui ne démarre jamais : élimine dans cet ordre — **espace disque → CPU/RAM → limites système du noyau (inotify, file descriptors, PIDs) → conflits réseau/port → config applicative**. C'est un réflexe de debug Kubernetes qui reviendra très souvent, bien au-delà de k3d.
+
+Tu es prêt à continuer sur le Module 2 (Kubernetes : pods, services, deployments) quand tu veux, ou on peut enchaîner directement sur le déploiement de kube-prometheus-stack sur ce cluster maintenant qu'il est stable.
+
+
+
+
+
+
