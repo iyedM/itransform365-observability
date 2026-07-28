@@ -1,0 +1,31 @@
+mode: deployment
+image:
+  repository: "otel/opentelemetry-collector-contrib"
+config:
+  receivers:
+    otlp:
+      protocols:
+        grpc: {}
+        http: {}
+  exporters:
+    prometheus:
+      endpoint: "0.0.0.0:8889"
+    otlphttp/loki:
+      endpoint: "http://loki-gateway.observability.svc.cluster.local/otlp"
+      headers:
+        X-Scope-OrgID: foo
+    otlp/tempo:
+      endpoint: "tempo:4317"
+      tls:
+        insecure: true
+  service:
+    pipelines:
+      metrics:
+        receivers: [otlp]
+        exporters: [prometheus]
+      logs:
+        receivers: [otlp]
+        exporters: [otlphttp/loki]
+      traces:
+        receivers: [otlp]
+        exporters: [otlp/tempo]
