@@ -1,6 +1,12 @@
 mode: deployment
 image:
   repository: "otel/opentelemetry-collector-contrib"
+ports:
+  metrics:
+    enabled: true
+    containerPort: 8889
+    servicePort: 8889
+    protocol: TCP
 config:
   receivers:
     otlp:
