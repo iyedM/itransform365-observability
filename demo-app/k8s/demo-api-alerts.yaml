@@ -1,0 +1,23 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: demo-api-slo
+  namespace: observability
+  labels:
+    release: kube-prom
+spec:
+  groups:
+    - name: demo-api-slo
+      rules:
+        - alert: DemoAPIHighErrorRate
+          expr: |
+            sum(rate(http_server_duration_milliseconds_count{exported_job="demo-api", http_status_code="500"}[5m]))
+            /
+            sum(rate(http_server_duration_milliseconds_count{exported_job="demo-api"}[5m]))
+            > 0.05
+          for: 2m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Taux d'erreur élevé sur demo-api"
+            description: "Le taux d'erreur de demo-api dépasse 5% depuis plus de 2 minutes (valeur actuelle : {{ $value | humanizePercentage }})"
