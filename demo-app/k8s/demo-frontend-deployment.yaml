@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: demo-frontend
+  namespace: observability
+  labels:
+    app: demo-frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: demo-frontend
+  template:
+    metadata:
+      labels:
+        app: demo-frontend
+    spec:
+      containers:
+        - name: demo-frontend
+          image: demo-frontend:v1
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 8082
+          env:
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "http://otel-collector-opentelemetry-collector.observability.svc.cluster.local:4317"
+            - name: OTEL_SERVICE_NAME
+              value: "demo-frontend"
+            - name: OTEL_EXPORTER_OTLP_PROTOCOL
+              value: "grpc"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: demo-frontend
+  namespace: observability
+spec:
+  selector:
+    app: demo-frontend
+  ports:
+    - port: 8082
+      targetPort: 8082
