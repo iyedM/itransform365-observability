@@ -5,6 +5,8 @@ grafana:
 prometheus:
   prometheusSpec:
     retention: 3d
+    enableFeatures:
+      - exemplar-storage
     resources:
       requests:
         cpu: 200m
