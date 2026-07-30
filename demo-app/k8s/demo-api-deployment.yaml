@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: demo-api
-          image: demo-api:v2
+          image: demo-api:v3
           imagePullPolicy: Never
           ports:
             - containerPort: 8081
