@@ -2,6 +2,23 @@ grafana:
   adminPassword: admin
   service:
     type: ClusterIP
+  additionalDataSources:
+    - name: loki
+      type: loki
+      access: proxy
+      url: http://loki-gateway
+      jsonData:
+        httpHeaderName1: "X-Scope-OrgID"
+      secureJsonData:
+        httpHeaderValue1: "foo"
+    - name: tempo
+      type: tempo
+      access: proxy
+      url: http://tempo:3200
+    - name: pyroscope
+      type: grafana-pyroscope-datasource
+      access: proxy
+      url: http://pyroscope.observability.svc.cluster.local:4040
 prometheus:
   prometheusSpec:
     retention: 3d
