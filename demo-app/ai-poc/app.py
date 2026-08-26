@@ -23,23 +23,31 @@ from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExport
 from opentelemetry.sdk.resources import Resource
 from openinference.instrumentation.langchain import LangChainInstrumentor
 
-# Mode test : si aucune clé API n'est fournie, on simule le LLM plutôt que
+# Mode test : si aucune clé LiteLLM n'est fournie, on simule le LLM plutôt que
 # d'appeler un vrai provider - permet de valider tout le pipeline
-# (graphe + tracing) avant d'avoir la clé de Haykel.
-MOCK_MODE = not bool(os.environ.get("OPENAI_API_KEY"))
+# (graphe + tracing) avant d'avoir la clé.
+MOCK_MODE = not bool(os.environ.get("LITELLM_KEY"))
 
 
 def get_llm():
-    """Retourne un vrai ChatOpenAI si une clé est disponible, sinon un LLM simulé."""
+    """Retourne un vrai LLM (via le LiteLLM Gateway d'iTransform365) si une clé
+    est disponible, sinon un LLM simulé."""
     if MOCK_MODE:
         from langchain_core.language_models.fake_chat_models import FakeListChatModel
-        print("[MOCK_MODE actif - aucune clé API détectée, réponses simulées]\n")
+        print("[MOCK_MODE actif - aucune clé LITELLM_KEY détectée, réponses simulées]\n")
         return FakeListChatModel(responses=[
             "Voici une réponse simulée pour tester le pipeline de tracing.",
         ])
     else:
         from langchain_openai import ChatOpenAI
-        return ChatOpenAI(model="gpt-4o-mini", temperature=0)
+        # LiteLLM expose une API compatible OpenAI - on pointe juste
+        # base_url vers le gateway au lieu de l'API OpenAI directe
+        return ChatOpenAI(
+            model="qwen3.6-35b",
+            api_key=os.environ["LITELLM_KEY"],
+            base_url="https://litellm.itransform365.com",
+            temperature=0,
+        )
 
 def setup_tracing():
     """Configure OpenTelemetry pour envoyer les traces vers le Collector."""
