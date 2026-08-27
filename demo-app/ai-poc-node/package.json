@@ -1,0 +1,23 @@
+{
+  "name": "aizo-poc-langgraph-js",
+  "version": "1.0.0",
+  "description": "POC LangGraph.js instrumenté avec OpenTelemetry/OpenInference - equivalent Node.js du POC Python",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js"
+  },
+  "dependencies": {
+    "@langchain/langgraph": "^0.2.0",
+    "@langchain/core": "^0.3.0",
+    "@langchain/openai": "^0.3.0",
+    "zod": "^3.23.0",
+
+    "@opentelemetry/sdk-trace-node": "^1.27.0",
+    "@opentelemetry/sdk-trace-base": "^1.27.0",
+    "@opentelemetry/exporter-trace-otlp-grpc": "^0.54.0",
+    "@opentelemetry/resources": "^1.27.0",
+    "@opentelemetry/semantic-conventions": "^1.27.0",
+
+    "@arizeai/openinference-instrumentation-langchain": "^1.0.0"
+  }
+}
