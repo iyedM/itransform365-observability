@@ -99,3 +99,20 @@ pour un scénario spécifiquement multi-agent IA.
 
 - `demo-app/ai-poc-node/agent-to-agent.js` — le scénario Supervisor/Sub-agent testé
 - `demo-app/ai-poc-node/app.js` — le POC single-agent de base (référence)
+
+## Test complémentaire — chaîne de 3 agents
+
+Pour vérifier que le résultat tient aussi avec plusieurs sauts successifs
+(pas juste un aller-retour), un deuxième test a été construit :
+`Supervisor → Research Agent → Validation Agent → Supervisor (synthèse)`.
+
+**Résultat** : confirmé à nouveau — une seule trace continue (18 spans,
+1 service, durée totale 3.13s), avec les 3 appels LLM distincts
+(`research_agent`, `validation_agent`, `supervisor_synthesize`) tous
+imbriqués correctement dans la même trace.
+
+**Conclusion renforcée** : le tracing OpenTelemetry/OpenInference reste
+cohérent quelle que soit la profondeur de la chaîne d'agents testée
+(1 saut ou 2 sauts), pas seulement pour le cas le plus simple.
+
+Fichier : `demo-app/ai-poc-node/three-agent-chain.js`
