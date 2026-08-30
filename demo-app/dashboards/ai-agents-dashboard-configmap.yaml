@@ -1,0 +1,122 @@
+apiVersion: v1
+data:
+  ai-agents-dashboard.json: |
+    {
+      "annotations": {
+        "list": []
+      },
+      "editable": true,
+      "fiscalYearStartMonth": 0,
+      "graphTooltip": 0,
+      "links": [],
+      "liveNow": false,
+      "panels": [
+        {
+          "gridPos": { "h": 4, "w": 24, "x": 0, "y": 0 },
+          "id": 1,
+          "options": {
+            "mode": "markdown",
+            "content": "## Observability — Agents IA (Phase 2)\n\nCe dashboard regroupe les traces des différents scénarios d'agents testés, tous instrumentés via **OpenTelemetry + OpenInference**, appelant le modèle **qwen3.6-35b** via le **LiteLLM Gateway** (`litellm.itransform365.com`).\n\n**Scénarios couverts :**\n1. Agent seul (Router → Chatbot → Tool)\n2. Supervisor → Sub-agent (délégation simple)\n3. Chaîne de 3 agents (Supervisor → Research → Validation → Supervisor)\n4. Agents en parallèle (fan-out / fan-in)\n\nChaque panel liste les traces récentes du scénario correspondant — clique sur une trace pour voir le détail des spans, les tokens consommés, et le modèle utilisé."
+          },
+          "title": "À propos",
+          "type": "text"
+        },
+        {
+          "datasource": { "type": "tempo", "uid": "P8D6546721A1D106C" },
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+          "id": 2,
+          "options": {},
+          "targets": [
+            {
+              "datasource": { "type": "tempo", "uid": "P8D6546721A1D106C" },
+              "queryType": "traceql",
+              "query": "{resource.service.name=\"aizo-poc-langgraph-js\"}",
+              "limit": 20,
+              "refId": "A"
+            }
+          ],
+          "title": "1. Agent seul — traces récentes",
+          "type": "table"
+        },
+        {
+          "datasource": { "type": "tempo", "uid": "P8D6546721A1D106C" },
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+          "id": 3,
+          "options": {},
+          "targets": [
+            {
+              "datasource": { "type": "tempo", "uid": "P8D6546721A1D106C" },
+              "queryType": "traceql",
+              "query": "{resource.service.name=\"aizo-poc-agent-to-agent\"}",
+              "limit": 20,
+              "refId": "A"
+            }
+          ],
+          "title": "2. Supervisor -> Sub-agent — traces récentes",
+          "type": "table"
+        },
+        {
+          "datasource": { "type": "tempo", "uid": "P8D6546721A1D106C" },
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+          "id": 4,
+          "options": {},
+          "targets": [
+            {
+              "datasource": { "type": "tempo", "uid": "P8D6546721A1D106C" },
+              "queryType": "traceql",
+              "query": "{resource.service.name=\"aizo-poc-three-agent-chain\"}",
+              "limit": 20,
+              "refId": "A"
+            }
+          ],
+          "title": "3. Chaîne de 3 agents — traces récentes",
+          "type": "table"
+        },
+        {
+          "datasource": { "type": "tempo", "uid": "P8D6546721A1D106C" },
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+          "id": 5,
+          "options": {},
+          "targets": [
+            {
+              "datasource": { "type": "tempo", "uid": "P8D6546721A1D106C" },
+              "queryType": "traceql",
+              "query": "{resource.service.name=\"aizo-poc-parallel-agents\"}",
+              "limit": 20,
+              "refId": "A"
+            }
+          ],
+          "title": "4. Agents en parallèle — traces récentes",
+          "type": "table"
+        },
+        {
+          "gridPos": { "h": 5, "w": 24, "x": 0, "y": 20 },
+          "id": 6,
+          "options": {
+            "mode": "markdown",
+            "content": "### Ce qu'il faut regarder dans chaque trace\n\n- **Attributs `llm.model_name`, `llm.token_count.prompt/completion/total`** — captés automatiquement par OpenInference, sans instrumentation manuelle\n- **Structure des spans** — chaque nœud LangGraph (router, chatbot, sub-agent...) apparaît comme un span distinct, imbriqué correctement même à travers plusieurs agents\n- **Pour le scénario \"parallèle\"** — vérifier visuellement que les spans `research_agent` et `translation_agent` se chevauchent dans le temps (voir `AGENT-TO-AGENT-RESULTS.md` pour la preuve déjà validée)\n\nDétails complets : `AGENT-TO-AGENT-RESULTS.md` à la racine du repo."
+          },
+          "title": "Guide de lecture",
+          "type": "text"
+        }
+      ],
+      "refresh": "",
+      "schemaVersion": 39,
+      "tags": ["observability", "ai-agents", "phase2"],
+      "templating": {
+        "list": []
+      },
+      "time": { "from": "now-24h", "to": "now" },
+      "timepicker": {},
+      "timezone": "",
+      "title": "Observability — Agents IA (Phase 2)",
+      "uid": "aizo-ai-agents-v1",
+      "version": 1
+    }
+kind: ConfigMap
+metadata:
+  labels:
+    grafana_dashboard: "1"
+  creationTimestamp: null
+  name: ai-agents-dashboard
+  namespace: observability
