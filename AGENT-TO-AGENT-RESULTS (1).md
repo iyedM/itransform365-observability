@@ -160,3 +160,41 @@ Fichier : `demo-app/ai-poc-node/parallel-agents.js`
 - `demo-app/ai-poc-node/three-agent-chain.js` — chaîne de 3 agents (test 2)
 - `demo-app/ai-poc-node/parallel-agents.js` — agents en parallèle (test 3)
 - `demo-app/ai-poc-node/app.js` — le POC single-agent de base (référence)
+
+## Scénario B — Erreur non gérée (crash)
+
+**Fichier** : `error-scenario-b-crash.js`
+**Trace ID** : `d2777dfb0f5941a8824f32be07b90315`
+**Date** : 30/08/2026
+
+### Setup
+Le Sub-agent lève une exception non catchée (contrairement au Scénario A où
+l'erreur est catchée avec `recordException` + `setStatus ERROR` explicite).
+Aucun try/catch autour de l'appel au sous-agent.
+
+### Résultat
+- **8 spans** exportés vers Tempo (contre 13 dans le Scénario A)
+- Durée totale de la trace : 21.21ms
+- Le crash survient dans le span `subagent_crash` (1.16ms)
+- **Aucun span après `subagent_crash`** : pas de retour au Supervisor, pas de
+  synthèse finale — le graphe LangGraph s'arrête net à l'exception
+- Le statut ERROR se **propage jusqu'au span racine**
+  (`aizo-poc-error-unhandled: LangGraph`), contrairement au Scénario A où
+  seul le span du sous-agent était marqué en erreur
+
+### Comparaison A vs B
+
+| | Scénario A (géré) | Scénario B (non géré) |
+|---|---|---|
+| Span(s) en erreur | Sous-agent uniquement | Sous-agent + racine (propagation) |
+| Spans totaux | 13 (chaîne complète) | 8 (arrêt net) |
+| Suite du graphe | Supervisor répond avec fallback | Rien après le crash |
+| Trace exportée | Complète | Partielle, mais fidèle à l'exécution réelle |
+
+### Conclusion
+OpenTelemetry/OpenInference n'a pas "perdu" de télémétrie : la trace
+partielle reflète exactement ce qui s'est exécuté avant l'exception. Même un
+crash non géré au niveau applicatif reste entièrement diagnosticable dans
+Tempo — on voit précisément où la chaîne s'est rompue et l'erreur propagée
+jusqu'à la racine permet une détection immédiate par une alerte Grafana sur
+le statut du span racine.
