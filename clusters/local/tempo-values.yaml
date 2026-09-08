@@ -7,5 +7,10 @@ tempo:
         endpoint: minio.observability.svc.cluster.local:9000
         access_key: minioadmin
         secret_key: minioadmin123
-        insecure: true  # pas de TLS pour MinIO local
-  retention: 168h  # 7 jours au lieu de 24h par défaut
+        insecure: true
+      block:
+        version: vParquet4
+  retention: 168h
+  ingester:
+    max_block_duration: 30m
+    trace_idle_period: 30s
