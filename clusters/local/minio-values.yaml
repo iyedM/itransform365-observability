@@ -1,0 +1,19 @@
+mode: standalone
+replicas: 1
+
+persistence:
+  enabled: true
+  size: 20Gi
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+
+rootUser: minioadmin
+rootPassword: minioadmin123
+
+buckets:
+  - name: tempo-traces
+    policy: none
+    purge: false

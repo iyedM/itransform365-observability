@@ -1,0 +1,11 @@
+tempo:
+  storage:
+    trace:
+      backend: s3
+      s3:
+        bucket: tempo-traces
+        endpoint: minio.observability.svc.cluster.local:9000
+        access_key: minioadmin
+        secret_key: minioadmin123
+        insecure: true  # pas de TLS pour MinIO local
+  retention: 168h  # 7 jours au lieu de 24h par défaut
