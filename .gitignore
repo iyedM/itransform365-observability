@@ -14,3 +14,9 @@ node_modules/
 **/node_modules/
 package-lock.json
 kubectl
+
+# Credentials sensibles - JAMAIS committer
+kubeconfig*
+*.kubeconfig
+**/secrets/
+.env.production
