@@ -1,0 +1,40 @@
+# dcgm-exporter — Values Helm, prêtes à déployer dès l'accès au serveur GPU
+#
+# Prérequis AVANT de déployer ceci :
+# 1. Le NVIDIA device plugin pour Kubernetes doit être installé sur le
+#    cluster GPU (sinon les GPU ne sont pas visibles/allouables par K8s,
+#    et le mapping pod->GPU ne fonctionnera pas).
+#    https://github.com/NVIDIA/k8s-device-plugin
+# 2. Vérifier que les nœuds GPU ont le label nvidia.com/gpu.present=true
+#    (généralement posé automatiquement par le device plugin ou gpu-operator)
+
+# Active le mapping Pod Kubernetes -> métriques GPU. Sans ça, dcgm-exporter
+# donne seulement des métriques par GPU physique, sans savoir quel Pod
+# (donc quel agent) l'utilise.
+kubeMapping:
+  enabled: true
+
+serviceMonitor:
+  enabled: true
+  # Namespace où Prometheus (déjà en place) doit chercher ce ServiceMonitor
+  additionalLabels:
+    release: kube-prom  # même label que les autres ServiceMonitor du projet
+  interval: 15s
+
+# DaemonSet - un pod dcgm-exporter par nœud GPU (comme node-exporter pour le CPU)
+# S'assure de ne se déployer QUE sur les nœuds ayant un GPU, pas sur tous les nœuds
+nodeSelector:
+  nvidia.com/gpu.present: "true"
+
+tolerations:
+  - key: nvidia.com/gpu
+    operator: Exists
+    effect: NoSchedule
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 200m
+    memory: 256Mi
