@@ -20,3 +20,4 @@ kubeconfig*
 *.kubeconfig
 **/secrets/
 .env.production
+clusters/aizoplan/tempo-values.yaml
