@@ -1,0 +1,21 @@
+prometheus:
+  prometheusSpec:
+    retention: 15d
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: csi-cinder-high-speed
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 20Gi
+    resources:
+      requests:
+        cpu: 200m
+        memory: 512Mi
+
+grafana:
+  enabled: false  # Grafana existe déjà sur ce cluster, pas besoin d'en redéployer un
+
+alertmanager:
+  enabled: false  # à activer plus tard si besoin, pas prioritaire pour l'instant
