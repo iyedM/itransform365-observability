@@ -1,0 +1,96 @@
+ingester:
+  zoneAwareReplication:
+    enabled: false
+  persistentVolume:
+    storageClass: csi-cinder-high-speed-gen2
+
+minio:
+  enabled: false  # using existing OVH bucket, no local MinIO
+
+kafka:
+  enabled: false  # not needed for this deployment size; ingest path uses the default (non-Kafka) mode
+  persistence:
+    storageClass: csi-cinder-high-speed-gen2
+
+mimir:
+  config: |
+    multitenancy_enabled: false
+
+    activity_tracker:
+      filepath: /active-query-tracker/activity.log
+
+    blocks_storage:
+      backend: s3
+      s3:
+        endpoint: s3.rbx.io.cloud.ovh.net
+        region: rbx
+        bucket_name: tempo-bucket
+        access_key_id: a6c30c8373054d3e9938216b6ad00577
+        secret_access_key: 014d2e20ff314dc8a5924d9763b60504
+        insecure: false
+      tsdb:
+        dir: /data/tsdb
+      bucket_store:
+        sync_dir: /data/tsdb-sync
+
+    compactor:
+      data_dir: /data/data-compactor
+
+    frontend:
+      scheduler_address: mimir-query-scheduler-headless.mimir.svc:9095
+
+    alertmanager_storage:
+      backend: s3
+      s3:
+        endpoint: s3.rbx.io.cloud.ovh.net
+        region: rbx
+        bucket_name: tempo-bucket
+        access_key_id: a6c30c8373054d3e9938216b6ad00577
+        secret_access_key: 014d2e20ff314dc8a5924d9763b60504
+        insecure: false
+
+    ruler_storage:
+      backend: s3
+      s3:
+        endpoint: s3.rbx.io.cloud.ovh.net
+        region: rbx
+        bucket_name: tempo-bucket
+        access_key_id: a6c30c8373054d3e9938216b6ad00577
+        secret_access_key: 014d2e20ff314dc8a5924d9763b60504
+        insecure: false
+
+# "monolithic" mode - simple single-process deployment, no microservices split
+deploymentMode: monolithic
+
+monolithic:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+  persistentVolume:
+    storageClass: csi-cinder-high-speed-gen2
+
+alertmanager:
+  enabled: false
+  zoneAwareReplication:
+    enabled: false
+
+ruler:
+  enabled: false
+  zoneAwareReplication:
+    enabled: false
+
+store_gateway:
+  zoneAwareReplication:
+    enabled: false
+  persistentVolume:
+    storageClass: csi-cinder-high-speed-gen2
+
+distributor:
+  zoneAwareReplication:
+    enabled: false
+
+compactor:
+  persistentVolume:
+    storageClass: csi-cinder-high-speed-gen2
