@@ -1,0 +1,130 @@
+// Alloy config — version mise à jour avec scraping de métriques CNPG
+// ajouté en plus de la config logs existante (rien de retiré)
+
+discovery.kubernetes "pods" {
+  role = "pod"
+}
+
+discovery.relabel "aizoplan_pods" {
+  targets = discovery.kubernetes.pods.targets
+
+  // Keep only namespaces that belong to the Aizoplan suite.
+  rule {
+    source_labels = ["__meta_kubernetes_namespace"]
+    regex         = "backoffice|backoffice-qa|aizoplan-qa|aizoplan-prod|aizoadviser-frontend-qa|aizoadviser-frontend-prod"
+    action        = "keep"
+  }
+
+  // Keep only pods that belong to Aizoplan, Aizo Adviser, or Backoffice.
+  rule {
+    source_labels = ["__meta_kubernetes_pod_name"]
+    regex         = "^(backend-backoffice-prod|frontend-backoffice-prod|backend-backoffice-qa|frontend-backoffice-qa|backend-aizoplan-qa|frontend-aizoplan-qa|backend-aizoplan-prod|frontend-aizoplan-prod|qa-aizoadviser|prod-aizoadviser).*"
+    action        = "keep"
+  }
+
+  rule {
+    source_labels = ["__meta_kubernetes_namespace"]
+    target_label  = "namespace"
+  }
+
+  rule {
+    source_labels = ["__meta_kubernetes_pod_name"]
+    target_label  = "pod"
+  }
+
+  rule {
+    source_labels = ["__meta_kubernetes_pod_container_name"]
+    target_label  = "container"
+  }
+
+  rule {
+    source_labels = ["__meta_kubernetes_pod_label_app"]
+    target_label  = "app"
+  }
+}
+
+loki.source.kubernetes "aizoplan_pods" {
+  targets    = discovery.relabel.aizoplan_pods.output
+  forward_to = [loki.write.aizoplan.receiver]
+}
+
+loki.write "aizoplan" {
+  endpoint {
+    url = "https://loki.itransform365.com/loki/api/v1/push"
+
+    headers = {
+      "X-Scope-OrgID" = "aizoplan",
+    }
+
+    basic_auth {
+      username = "admin"
+      password = "56d1-cedf5-b5c4b2424c05c7"
+    }
+  }
+}
+
+// --- NOUVEAU : scraping des métriques CNPG (PostgreSQL logical replication) ---
+
+discovery.relabel "cnpg_pods" {
+  targets = discovery.kubernetes.pods.targets
+
+  // Ne garde que les pods CNPG du cluster aizoplan-qa, qui exposent
+  // leurs métriques sur le port 9187 (endpoint natif CNPG).
+  rule {
+    source_labels = ["__meta_kubernetes_namespace"]
+    regex         = "aizoplan-qa"
+    action        = "keep"
+  }
+
+  rule {
+    source_labels = ["__meta_kubernetes_pod_label_cnpg_io_cluster"]
+    regex         = ".+"
+    action        = "keep"
+  }
+
+  rule {
+    source_labels = ["__address__"]
+    regex         = "([^:]+)(?::\\d+)?"
+    replacement   = "${1}:9187"
+    target_label  = "__address__"
+  }
+
+  rule {
+    source_labels = ["__meta_kubernetes_namespace"]
+    target_label  = "namespace"
+  }
+
+  rule {
+    source_labels = ["__meta_kubernetes_pod_name"]
+    target_label  = "pod"
+  }
+
+  rule {
+    source_labels = ["__meta_kubernetes_pod_label_cnpg_io_cluster"]
+    target_label  = "cnpg_cluster"
+  }
+}
+
+prometheus.scrape "cnpg" {
+  targets    = discovery.relabel.cnpg_pods.output
+  forward_to = [prometheus.remote_write.mimir.receiver]
+  job_name   = "cnpg"
+}
+
+prometheus.remote_write "mimir" {
+  endpoint {
+    url = "https://mimir.itransform365.com/api/v1/push"
+
+    basic_auth {
+      username = "alloy-push"
+      password = "oxvcdi0gMGVW//brQtT4QC0auQl2O/pV"
+    }
+
+    headers = {
+      "X-Scope-OrgID" = "aizo-qa",
+      // Valeur provisoire - à ajuster une fois la convention de
+      // nommage des tenants confirmée avec Koussay (per project, 
+      // per env, ou les deux).
+    }
+  }
+}

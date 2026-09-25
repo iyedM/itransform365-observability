@@ -8,9 +8,19 @@ minio:
   enabled: false  # using existing OVH bucket, no local MinIO
 
 kafka:
-  enabled: false  # not needed for this deployment size; ingest path uses the default (non-Kafka) mode
+  enabled: true  # required by this chart version's ingest storage architecture -
+                 # push_grpc_method_enabled: false is hardcoded, ingesters can't
+                 # receive data without it
   persistence:
     storageClass: csi-cinder-high-speed-gen2
+    size: 5Gi
+  resources:
+    requests:
+      cpu: 100m
+      memory: 512Mi
+    limits:
+      cpu: 300m
+      memory: 768Mi
 
 mimir:
   config: |
@@ -35,6 +45,11 @@ mimir:
 
     compactor:
       data_dir: /data/data-compactor
+
+    ingester:
+      ring:
+        replication_factor: 1
+        num_tokens: 512
 
     frontend:
       scheduler_address: mimir-query-scheduler-headless.mimir.svc:9095
