@@ -1,0 +1,231 @@
+{
+  "title": "CNPG Logical Replication - aizoplan-qa",
+  "uid": "cnpg-logical-replication",
+  "tags": ["cnpg", "postgresql", "replication"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": { "from": "now-6h", "to": "now" },
+  "templating": {
+    "list": [
+      {
+        "name": "datasource",
+        "type": "datasource",
+        "query": "prometheus",
+        "current": {}
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Replication Slot Active",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 6, "w": 6, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "expr": "cnpg_pg_replication_slots_active{namespace=\"aizoplan-qa\"}",
+          "legendFormat": "{{slot_name}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "type": "value", "options": { "0": { "text": "INACTIVE", "color": "red" } } },
+            { "type": "value", "options": { "1": { "text": "ACTIVE", "color": "green" } } }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "green", "value": 1 }
+            ]
+          }
+        }
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value_and_name"
+      }
+    },
+    {
+      "id": 2,
+      "title": "CNPG Instances Up",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 6, "w": 6, "x": 6, "y": 0 },
+      "targets": [
+        {
+          "expr": "up{job=\"cnpg\", namespace=\"aizoplan-qa\"}",
+          "legendFormat": "{{cnpg_cluster}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "type": "value", "options": { "0": { "text": "DOWN", "color": "red" } } },
+            { "type": "value", "options": { "1": { "text": "UP", "color": "green" } } }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "green", "value": 1 }
+            ]
+          }
+        }
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value_and_name"
+      }
+    },
+    {
+      "id": 3,
+      "title": "In Recovery (replica status)",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 6, "w": 6, "x": 12, "y": 0 },
+      "targets": [
+        {
+          "expr": "cnpg_pg_replication_in_recovery{namespace=\"aizoplan-qa\"}",
+          "legendFormat": "{{cnpg_cluster}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "type": "value", "options": { "0": { "text": "PRIMARY", "color": "blue" } } },
+            { "type": "value", "options": { "1": { "text": "REPLICA", "color": "purple" } } }
+          ]
+        }
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value_and_name"
+      }
+    },
+    {
+      "id": 4,
+      "title": "Slot WAL Status",
+      "type": "table",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 6, "w": 6, "x": 18, "y": 0 },
+      "targets": [
+        {
+          "expr": "cnpg_pg_replication_slots_wal_status{namespace=\"aizoplan-qa\"}",
+          "format": "table",
+          "instant": true
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Replication Slot Active - Over Time",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 6 },
+      "targets": [
+        {
+          "expr": "cnpg_pg_replication_slots_active{namespace=\"aizoplan-qa\"}",
+          "legendFormat": "{{slot_name}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "max": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "green", "value": 1 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 6,
+      "title": "Replication Lag (bytes)",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 6 },
+      "description": "Derived from pg_wal_lsn_diff via the custom query if configured; falls back to wal_status size if no direct lag metric exists",
+      "targets": [
+        {
+          "expr": "cnpg_pg_replication_slots_wal_status{namespace=\"aizoplan-qa\"}",
+          "legendFormat": "{{slot_name}} - {{pod}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes"
+        }
+      }
+    },
+    {
+      "id": 7,
+      "title": "Backend Max Transaction Duration",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 14 },
+      "targets": [
+        {
+          "expr": "cnpg_backends_max_tx_duration_seconds{namespace=\"aizoplan-qa\"}",
+          "legendFormat": "{{pod}} - {{datname}} - {{state}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        }
+      }
+    },
+    {
+      "id": 8,
+      "title": "Replication Replay Lag (seconds)",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 14 },
+      "description": "Physical replication replay lag - relevant if/when streaming replication is also configured, not just logical",
+      "targets": [
+        {
+          "expr": "cnpg_pg_stat_replication_replay_lag_seconds{namespace=\"aizoplan-qa\"}",
+          "legendFormat": "{{application_name}} - {{client_addr}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 5 },
+              { "color": "red", "value": 30 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 9,
+      "title": "First Point of Recoverability (backup age)",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 22 },
+      "targets": [
+        {
+          "expr": "cnpg_collector_first_recoverability_point{namespace=\"aizoplan-qa\"}",
+          "legendFormat": "{{pod}}"
+        }
+      ]
+    }
+  ]
+}
